@@ -1,47 +1,38 @@
 const request = require('supertest');
-const app = require('../server');  // Import your Express app
+const app = require('../server'); // Import your Express app
+const User = require('../models/User');
+const { generateRandomString } = require('../utils/helpers');
 
-describe('User Authentication', () => {
-  let token;
+describe('User API Endpoints', () => {
+    let testUser;
+    let token;
 
-  // Test User Signup
-  it('should signup a new user', async () => {
-    const res = await request(app)
-      .post('/api/auth/signup')
-      .send({
-        first_name: 'John',
-        last_name: 'Doe',
-        email: 'john.doe@example.com',
-        password: 'password123',
-      });
-    
-    expect(res.status).toBe(201);
-    expect(res.body.email).toBe('john.doe@example.com');
-  });
+    beforeAll(async () => {
+        // Clear the database before running tests
+        await User.deleteMany({});
 
-  // Test User Signin
-  it('should signin an existing user and return a token', async () => {
-    const res = await request(app)
-      .post('/api/auth/signin')
-      .send({
-        email: 'john.doe@example.com',
-        password: 'password123',
-      });
+        // Create a test user and sign them in to get a token
+        testUser = {
+            first_name: 'Test',
+            last_name: 'User',
+            email: `test${generateRandomString(8)}@example.com`,
+            password: 'password123',
+        };
+        await request(app).post('/api/auth/signup').send(testUser);
+        const signInRes = await request(app).post('/api/auth/signin').send({
+            email: testUser.email,
+            password: testUser.password,
+        });
+        token = signInRes.body.token;
+    });
 
-    expect(res.status).toBe(200);
-    expect(res.body.token).toBeDefined();
-    token = res.body.token;
-  });
-
-  it('should fail signin with invalid credentials', async () => {
-    const res = await request(app)
-      .post('/api/auth/signin')
-      .send({
-        email: 'john.doe@example.com',
-        password: 'wrongpassword',
-      });
-
-    expect(res.status).toBe(401);
-    expect(res.body.message).toBe('Invalid credentials');
-  });
+    it('should get user profile', async () => {
+        const res = await request(app)
+            .get('/api/users/profile')
+            .set('Authorization', `Bearer ${token}`);
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toHaveProperty('first_name', testUser.first_name);
+        expect(res.body).toHaveProperty('last_name', testUser.last_name);
+        expect(res.body).toHaveProperty('email', testUser.email);
+    });
 });

@@ -1,33 +1,36 @@
 const express = require('express');
-const mongoose = require('mongoose');
-const userRoutes = require('./routes/userRoutes');
+const cors = require('cors');
+const connectDB = require('./config/database');
+const authRoutes = require('./routes/authRoutes');
 const blogRoutes = require('./routes/blogRoutes');
-require('dotenv').config(); // Load environment variables
+const userRoutes = require('./routes/userRoutes');
 
 const app = express();
 
+// Connect to MongoDB
+connectDB();
+
 // Middleware
-app.use(express.json());
+app.use(cors());
+app.use(express.json()); // Parse JSON request bodies
 
 // Routes
-app.use('/api/auth', userRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/blogs', blogRoutes);
+app.use('/api/users', userRoutes);
 
-// Environment Variables
-const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI;
+// Define a port
+const PORT = process.env.PORT || 5000;
 
-// MongoDB Connection
-mongoose
-  .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => {
-    console.log('Connected to MongoDB Atlas!');
-    // The `app.listen()` call is removed for testing purposes
-  })
-  .catch((error) => {
-    console.error('Database connection failed:', error);
-    process.exit(1); // Exit the process with failure
-  });
+// Start the server
+app.listen(PORT, () => {
+    console.log(`Server started on port ${PORT}`);
+});
 
-// Export the app to be used in tests
-module.exports = app;
+// Error handling middleware (optional, for more robust error handling)
+app.use((err, req, res, next) => {
+    console.error(err);
+    res.status(500).json({ message: 'Internal server error' });
+});
+
+module.exports = app; // For testing
